@@ -6,7 +6,7 @@
   "versionCode": "100",
   "transformPx": false,
   "mp-weixin": {
-    "appid": "your-wechat-appid",
+    "appid": "wxf49c0f8f5cf7af14",
     "setting": {
       "urlCheck": false,
       "es6": true,
@@ -14,14 +14,7 @@
       "minified": true
     },
     "usingComponents": true,
-    "permission": {
-      "scope.record": {
-        "desc": "用于录制你的英语口语发音"
-      }
-    },
-    "requiredPrivateInfos": [
-      "chooseAddress"
-    ]
+    "requiredPrivateInfos": ["getLocation"]
   },
   "h5": {
     "router": {

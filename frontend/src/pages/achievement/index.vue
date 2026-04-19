@@ -94,9 +94,9 @@ const remainingForNext = ref(72)
 const activeTab = ref('all')
 
 const achievementTabs = computed(() => [
-  { label: '全部', value: 'all', count: achievements.filter(a => a.earned).length },
-  { label: '已获得', value: 'earned', count: achievements.filter(a => a.earned).length },
-  { label: '进行中', value: 'inprogress', count: achievements.filter(a => !a.earned).length }
+  { label: '全部', value: 'all', count: achievements.value.filter(a => a.earned).length },
+  { label: '已获得', value: 'earned', count: achievements.value.filter(a => a.earned).length },
+  { label: '进行中', value: 'inprogress', count: achievements.value.filter(a => !a.earned).length }
 ])
 
 const achievements = ref([

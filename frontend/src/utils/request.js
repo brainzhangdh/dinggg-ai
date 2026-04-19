@@ -3,7 +3,7 @@
  * 基于 uni.request 封装
  */
 
-const BASE_URL = 'https://api.dinggg.com'
+const BASE_URL = 'http://162.14.75.65'
 
 /**
  * 请求封装

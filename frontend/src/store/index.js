@@ -8,12 +8,12 @@ export const useUserStore = defineStore('user', () => {
   // ========== State ==========
   const token = ref('')
   const userInfo = ref({
-    id: '',
-    openid: '',
-    nickname: '',
+    id: 'test123',
+    openid: 'test_openid',
+    nickname: '小明',
     avatar: '',
-    age: 0,
-    role: 'child', // 'child' | 'parent'
+    age: 10,
+    role: 'child',
     parentId: '',
     parentCode: '',
     subscription: {
@@ -23,16 +23,16 @@ export const useUserStore = defineStore('user', () => {
       autoRenew: false
     },
     stats: {
-      totalSessions: 0,
-      totalMinutes: 0,
-      totalStars: 0,
-      streakDays: 0,
-      lastPracticeDate: null
+      totalSessions: 5,
+      totalMinutes: 30,
+      totalStars: 128,
+      streakDays: 7,
+      lastPracticeDate: new Date().toISOString()
     }
   })
 
   // ========== Getters ==========
-  const isLoggedIn = computed(() => !!token.value)
+  const isLoggedIn = computed(() => true) // 始终返回true用于测试
   const isVIP = computed(() => userInfo.value.subscription.plan !== 'free')
   const isChild = computed(() => userInfo.value.role === 'child')
   const isParent = computed(() => userInfo.value.role === 'parent')
@@ -55,16 +55,29 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
-   * 微信登录
+   * 模拟登录（用于测试）
+   */
+  async function mockLogin() {
+    try {
+      setToken('mock_token_12345')
+      uni.setStorageSync('token', 'mock_token_12345')
+      uni.setStorageSync('nickname', userInfo.value.nickname)
+      uni.setStorageSync('stars', userInfo.value.stats.totalStars)
+      return true
+    } catch (err) {
+      console.error('模拟登录失败:', err)
+      return false
+    }
+  }
+
+  /**
+   * 微信登录（正式版本）
    */
   async function wechatLogin() {
     try {
-      // 1. 获取微信登录code
       const { code } = await uni.login({ provider: 'weixin' })
-
-      // 2. 发送到后端换取Token
       const res = await uni.request({
-        url: 'https://api.dinggg.com/api/auth/login',
+        url: 'http://162.14.75.65/api/auth/login',
         method: 'POST',
         data: { code }
       })
@@ -89,14 +102,12 @@ export const useUserStore = defineStore('user', () => {
    */
   async function fetchProfile() {
     if (!token.value) return false
-
     try {
       const res = await uni.request({
-        url: 'https://api.dinggg.com/api/auth/profile',
+        url: 'http://162.14.75.65/api/auth/profile',
         method: 'GET',
         header: { Authorization: `Bearer ${token.value}` }
       })
-
       if (res.data.code === 0) {
         setUserInfo(res.data.data)
         return true
@@ -118,7 +129,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
-   * 初始化（从本地存储恢复）
+   * 初始化
    */
   function init() {
     const savedToken = uni.getStorageSync('token')
@@ -128,17 +139,15 @@ export const useUserStore = defineStore('user', () => {
   }
 
   return {
-    // State
     token,
     userInfo,
-    // Getters
     isLoggedIn,
     isVIP,
     isChild,
     isParent,
-    // Actions
     setToken,
     setUserInfo,
+    mockLogin,
     wechatLogin,
     fetchProfile,
     logout,

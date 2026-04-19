@@ -186,6 +186,12 @@ import StarBadge from '@/components/StarBadge/StarBadge.vue'
 const sceneId = ref('')
 const sceneName = ref('')
 
+// uni-app页面生命周期获取参数
+onLoad((options) => {
+  sceneId.value = options.sceneId || ''
+  sceneName.value = decodeURIComponent(options.sceneName || '情景对话')
+})
+
 // 对话
 const messages = ref([])
 const inputText = ref('')
@@ -254,13 +260,6 @@ function getTimeText(timestamp) {
 }
 
 onMounted(() => {
-  // 获取页面参数
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  const options = currentPage.options || {}
-  sceneId.value = options.sceneId || ''
-  sceneName.value = decodeURIComponent(options.sceneName || '情景对话')
-
   // 初始化录音
   initRecorder()
   initAudio()
@@ -274,20 +273,26 @@ onMounted(() => {
 })
 
 function initRecorder() {
-  recorderManager = uni.getRecorderManager()
+  // 检查是否支持录音（小程序环境）
+  if (typeof uni.getRecorderManager === 'function') {
+    recorderManager = uni.getRecorderManager()
 
-  recorderManager.onStop((res) => {
-    if (res.duration > 500 && currentTempFile) {
-      uploadVoice(currentTempFile, res.duration)
-    }
-    currentTempFile = ''
-  })
+    recorderManager.onStop((res) => {
+      if (res.duration > 500 && currentTempFile) {
+        uploadVoice(currentTempFile, res.duration)
+      }
+      currentTempFile = ''
+    })
 
-  recorderManager.onError((err) => {
-    console.error('录音错误:', err)
-    uni.showToast({ title: '录音失败，请重试', icon: 'none' })
-    isRecording.value = false
-  })
+    recorderManager.onError((err) => {
+      console.error('录音错误:', err)
+      uni.showToast({ title: '录音失败，请重试', icon: 'none' })
+      isRecording.value = false
+    })
+  } else {
+    console.warn('当前环境不支持录音功能')
+    recorderManager = null
+  }
 }
 
 function initAudio() {
@@ -328,6 +333,10 @@ function onVoiceTouchEnd() {
 }
 
 function startRecording() {
+  if (!recorderManager) {
+    uni.showToast({ title: '当前环境不支持录音', icon: 'none' })
+    return
+  }
   recorderManager.start({
     format: 'mp3',
     duration: 60000,
@@ -338,13 +347,14 @@ function startRecording() {
 }
 
 function stopRecording() {
+  if (!recorderManager) return
   recorderManager.stop()
 }
 
 function cancelRecording() {
   isRecording.value = false
   currentTempFile = ''
-  recorderManager.stop()
+  if (recorderManager) recorderManager.stop()
 }
 
 async function uploadVoice(tempFilePath, duration) {
