@@ -229,7 +229,7 @@ function handleTap() {
   position: absolute;
   inset: -4rpx;
   border: 4rpx solid var(--scene-color);
-  border-radius: $radius-lg + 4rpx;
+  border-radius: ($radius-lg + 4px);
   animation: ring-pulse 1.5s ease-in-out infinite;
   pointer-events: none;
 }

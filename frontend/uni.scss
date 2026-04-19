@@ -1,0 +1,51 @@
+/* UniApp 全局 SCSS 变量 - 自动注入到所有组件样式 */
+/* 为避免重复，此文件只做变量转发，样式定义在 global.scss */
+
+$brand-green: #7BC67E;
+$brand-yellow: #F9C846;
+$brand-blue: #5BA4F5;
+$brand-purple: #A78BFA;
+$brand-pink: #F9A8C9;
+$brand-orange: #FB923C;
+$success-green: #68D391;
+
+$bg-child: #F0F7FF;
+$bg-parent: #F5F0FA;
+$bg-card: #FFFFFF;
+$bg-bubble-ai: #EEF5FF;
+
+$text-primary: #2D3748;
+$text-secondary: #718096;
+$text-hint: #A0AEC0;
+$text-white: #FFFFFF;
+
+$border-color: #E2E8F0;
+$border-light: #EDF2F7;
+$error-color: #FC8181;
+
+$primary-color: $brand-green;
+$secondary-color: $brand-purple;
+$accent-color: $brand-yellow;
+$bg-color: $bg-child;
+$card-bg: $bg-card;
+
+$radius-xs: 8px;
+$radius-sm: 12px;
+$radius-md: 16px;
+$radius-lg: 24px;
+$radius-xl: 32px;
+$radius-full: 9999px;
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+$shadow-xs: 0 2px 8px rgba(0, 0, 0, 0.04);
+$shadow-sm: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+$shadow-md: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 16rpx 40rpx rgba(0, 0, 0, 0.12);
+
+$gradient-hero: linear-gradient(135deg, #A78BFA 0%, #5BA4F5 100%);
+$gradient-btn: linear-gradient(135deg, #7BC67E 0%, #68D391 100%);

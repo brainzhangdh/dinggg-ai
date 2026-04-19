@@ -6,7 +6,7 @@
   "versionCode": "100",
   "transformPx": false,
   "mp-weixin": {
-    "appid": "wxf49c0f8f5cf7af14",
+    "appid": "your-wechat-appid",
     "setting": {
       "urlCheck": false,
       "es6": true,
@@ -39,12 +39,5 @@
       }
     },
     "title": "顶呱呱AI宝"
-  },
-  "plus": {
-    "distribute": {
-      "android": {
-        "appid": "wxf49c0f8f5cf7af14"
-      }
-    }
   }
 }

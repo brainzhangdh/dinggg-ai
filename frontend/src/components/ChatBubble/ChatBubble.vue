@@ -219,7 +219,7 @@ onMounted(() => {
       margin-left: $spacing-sm;
       max-width: 78%;
       /* AI气泡左上角稍尖，模拟机器人 */
-      border-top-left-radius: $radius-xl + 8rpx;
+      border-top-left-radius: ($radius-xl + 8px);
     }
   }
 }
