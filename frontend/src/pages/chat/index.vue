@@ -177,6 +177,7 @@
 </template>
 
 <script setup>
+// uni-app page lifecycle - onLoad is auto-global in script setup
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import FrogCharacter from '@/components/FrogCharacter/FrogCharacter.vue'
 import ChatBubble from '@/components/ChatBubble/ChatBubble.vue'
@@ -185,12 +186,6 @@ import StarBadge from '@/components/StarBadge/StarBadge.vue'
 // 页面参数
 const sceneId = ref('')
 const sceneName = ref('')
-
-// uni-app页面生命周期获取参数
-onLoad((options) => {
-  sceneId.value = options.sceneId || ''
-  sceneName.value = decodeURIComponent(options.sceneName || '情景对话')
-})
 
 // 对话
 const messages = ref([])
@@ -260,6 +255,15 @@ function getTimeText(timestamp) {
 }
 
 onMounted(() => {
+  // 获取页面参数（通过getCurrentPages）
+  const pages = getCurrentPages()
+  if (pages.length > 0) {
+    const currentPage = pages[pages.length - 1]
+    const options = currentPage.options || {}
+    sceneId.value = options.sceneId || ''
+    sceneName.value = decodeURIComponent(options.sceneName || '情景对话')
+  }
+  
   // 初始化录音
   initRecorder()
   initAudio()
