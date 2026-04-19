@@ -1,0 +1,87 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "顶呱呱AI宝",
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/chat/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/parent/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/achievement/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "顶呱呱AI宝",
+    "navigationBarBackgroundColor": "#F0F7FF",
+    "backgroundColor": "#F0F7FF"
+  },
+  "tabBar": {
+    "color": "#A0AEC0",
+    "selectedColor": "#7BC67E",
+    "borderStyle": "white",
+    "backgroundColor": "rgba(255,255,255,0.95)",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/parent/index",
+        "text": "家长"
+      },
+      {
+        "pagePath": "pages/achievement/index",
+        "text": "成就"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^ FrogCharacter": "@/components/FrogCharacter/FrogCharacter.vue",
+      "^ChatBubble": "@/components/ChatBubble/ChatBubble.vue",
+      "^SceneCard": "@/components/SceneCard/SceneCard.vue",
+      "^StarBadge": "@/components/StarBadge/StarBadge.vue"
+    }
+  }
+}

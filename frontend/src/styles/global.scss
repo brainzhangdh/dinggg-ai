@@ -1,100 +1,473 @@
-/* 顶呱呱AI宝 - 全局样式 */
+/* ============================================
+   顶呱呱AI宝 - 全局样式
+   设计规范：低饱和蓝白 + 绿色主题，儿童友好
+   ============================================ */
 
-/* 品牌色彩 */
-$primary-color: #6C63FF;      // 主色：活力紫
-$secondary-color: #FF6B9D;    // 辅色：樱花粉
-$accent-color: #FFD93D;       // 强调色：阳光黄
-$success-color: #4CAF50;      // 成功绿
-$warning-color: #FF9800;      // 警告橙
-$error-color: #F44336;         // 错误红
+/* ---- 品牌色彩 ---- */
+$brand-green: #7BC67E;       // 活力绿（主按钮、成就）
+$brand-yellow: #F9C846;       // 暖阳黄（星星、激励）
+$brand-blue: #5BA4F5;        // 科技蓝（AI元素、进度条）
+$brand-purple: #A78BFA;      // 梦幻紫（成就系统）
+$brand-pink: #F9A8C9;        // 柔和粉（可选）
+$brand-orange: #FB923C;      // 活力橙（每日任务）
+$success-green: #68D391;     // 温和绿（鼓励/正确）
 
-/* 背景色 */
-$bg-color: #F5F7FA;            // 页面背景
-$card-bg: #FFFFFF;             // 卡片背景
+/* ---- 背景色 ---- */
+$bg-child: #F0F7FF;          // 孩子端主背景（淡蓝白）
+$bg-parent: #F5F0FA;         // 家长端主背景（淡紫白）
+$bg-card: #FFFFFF;           // 卡片背景
+$bg-bubble-child: #FFFFFF;   // 孩子气泡
+$bg-bubble-ai: #EEF5FF;      // AI气泡（淡蓝白）
 
-/* 文字色 */
-$text-primary: #333333;        // 主要文字
-$text-secondary: #666666;      // 次要文字
-$text-hint: #999999;           // 提示文字
-$text-white: #FFFFFF;         // 白色文字
+/* ---- 文字色 ---- */
+$text-primary: #2D3748;      // 主文字
+$text-secondary: #718096;    // 次要文字
+$text-hint: #A0AEC0;         // 占位文字
+$text-white: #FFFFFF;
 
-/* 字体 */
-$font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+/* ---- 分割/边框 ---- */
+$border-color: #E2E8F0;
+$border-light: #EDF2F7;
 
-/* 圆角 */
-$radius-sm: 8px;
-$radius-md: 12px;
-$radius-lg: 16px;
-$radius-xl: 24px;
+/* ---- 错误提示（温和设计，不用刺眼红色） ---- */
+$error-color: #FC8181;
+
+/* ---- 主色调别名（兼容旧代码） ---- */
+$primary-color: $brand-green;
+$secondary-color: $brand-purple;
+$accent-color: $brand-yellow;
+$success-color: $success-green;
+$warning-color: $brand-orange;
+$error-color: $error-color;
+$bg-color: $bg-child;
+$card-bg: $bg-card;
+
+/* ---- 字体 ---- */
+$font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+
+/* ---- 圆角（圆润设计，给孩子安全感） ---- */
+$radius-xs: 8px;
+$radius-sm: 12px;
+$radius-md: 16px;
+$radius-lg: 24px;
+$radius-xl: 32px;
 $radius-full: 9999px;
 
-/* 间距 */
+/* ---- 间距 ---- */
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 16px;
 $spacing-lg: 24px;
 $spacing-xl: 32px;
 
-/* 阴影 */
-$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
-$shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+/* ---- 阴影 ---- */
+$shadow-xs: 0 2px 8px rgba(0, 0, 0, 0.04);
+$shadow-sm: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+$shadow-md: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 16rpx 40rpx rgba(0, 0, 0, 0.12);
 
-/* 全局重置 */
+/* ---- 渐变 ---- */
+$gradient-hero: linear-gradient(135deg, #A78BFA 0%, #5BA4F5 100%);
+$gradient-btn: linear-gradient(135deg, #7BC67E 0%, #68D391 100%);
+$gradient-ai: linear-gradient(135deg, #EEF5FF 0%, #E0E9FF 100%);
+$gradient-card: linear-gradient(180deg, rgba(167,139,250,0.08) 0%, rgba(255,255,255,0) 100%);
+
+/* ---- 动效时长 ---- */
+$duration-fast: 100ms;
+$duration-normal: 200ms;
+$duration-slow: 300ms;
+$duration-typing: 50ms; // 打字机效果每字
+
+/* ============================================
+   全局重置 & 基础
+   ============================================ */
 page {
-  background-color: $bg-color;
+  background-color: $bg-child;
   font-family: $font-family;
-  font-size: 14px;
+  font-size: 28rpx;
   color: $text-primary;
+  line-height: 1.6;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+view, text, scroll-view, swiper {
   box-sizing: border-box;
 }
 
-view, text {
-  box-sizing: border-box;
+/* 禁用文字选中（防误触） */
+page {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* 通用工具类 */
-.flex {
+/* 隐藏滚动条 */
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ============================================
+   通用工具类
+   ============================================ */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.text-primary { color: $text-primary; }
+.text-secondary { color: $text-secondary; }
+.text-hint { color: $text-hint; }
+.text-white { color: $text-white; }
+.text-green { color: $brand-green; }
+.text-blue { color: $brand-blue; }
+.text-yellow { color: $brand-yellow; }
+.text-purple { color: $brand-purple; }
+.text-orange { color: $brand-orange; }
+
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+
+.text-xs { font-size: 22rpx; }
+.text-sm { font-size: 24rpx; }
+.text-md { font-size: 28rpx; }
+.text-lg { font-size: 32rpx; }
+.text-xl { font-size: 36rpx; }
+.text-2xl { font-size: 40rpx; }
+.text-3xl { font-size: 48rpx; }
+
+/* ---- 间距工具 ---- */
+.m-0 { margin: 0; }
+.p-0 { padding: 0; }
+.mt-xs { margin-top: $spacing-xs; }
+.mt-sm { margin-top: $spacing-sm; }
+.mt-md { margin-top: $spacing-md; }
+.mt-lg { margin-top: $spacing-lg; }
+.mt-xl { margin-top: $spacing-xl; }
+.mb-xs { margin-bottom: $spacing-xs; }
+.mb-sm { margin-bottom: $spacing-sm; }
+.mb-md { margin-bottom: $spacing-md; }
+.mb-lg { margin-bottom: $spacing-lg; }
+.mb-xl { margin-bottom: $spacing-xl; }
+.ml-xs { margin-left: $spacing-xs; }
+.ml-sm { margin-left: $spacing-sm; }
+.ml-md { margin-left: $spacing-md; }
+.ml-lg { margin-left: $spacing-lg; }
+.mr-xs { margin-right: $spacing-xs; }
+.mr-sm { margin-right: $spacing-sm; }
+.mr-md { margin-right: $spacing-md; }
+.mr-lg { margin-right: $spacing-lg; }
+
+.p-sm { padding: $spacing-sm; }
+.p-md { padding: $spacing-md; }
+.p-lg { padding: $spacing-lg; }
+.p-xl { padding: $spacing-xl; }
+.px-md { padding-left: $spacing-md; padding-right: $spacing-md; }
+.py-md { padding-top: $spacing-md; padding-bottom: $spacing-md; }
+.px-lg { padding-left: $spacing-lg; padding-right: $spacing-lg; }
+.py-lg { padding-top: $spacing-lg; padding-bottom: $spacing-lg; }
+
+/* ---- 圆角工具 ---- */
+.rounded-sm { border-radius: $radius-sm; }
+.rounded-md { border-radius: $radius-md; }
+.rounded-lg { border-radius: $radius-lg; }
+.rounded-xl { border-radius: $radius-xl; }
+.rounded-full { border-radius: $radius-full; }
+
+/* ---- 阴影工具 ---- */
+.shadow-sm { box-shadow: $shadow-sm; }
+.shadow-md { box-shadow: $shadow-md; }
+.shadow-lg { box-shadow: $shadow-lg; }
+
+/* ---- 背景工具 ---- */
+.bg-white { background-color: $bg-card; }
+.bg-primary { background-color: $brand-green; }
+.bg-blue { background-color: $brand-blue; }
+.bg-purple { background-color: $brand-purple; }
+.bg-yellow { background-color: $brand-yellow; }
+.bg-orange { background-color: $brand-orange; }
+.bg-child { background-color: $bg-child; }
+.bg-parent { background-color: $bg-parent; }
+
+/* ---- 宽高 ---- */
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.min-h-screen { min-height: 100vh; }
+
+/* ---- 定位 ---- */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+
+/* ---- 层级 ---- */
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.z-50 { z-index: 50; }
+
+/* ---- 溢出 ---- */
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+
+/* ---- 透明度 ---- */
+.opacity-50 { opacity: 0.5; }
+.opacity-70 { opacity: 0.7; }
+.opacity-80 { opacity: 0.8; }
+
+/* ---- 安全区 ---- */
+.safe-area-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-area-top {
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ============================================
+   通用卡片样式
+   ============================================ */
+.card {
+  background: $bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg;
+}
+
+.card-gradient {
+  background: $bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg;
+  background-image: $gradient-card;
+}
+
+/* ============================================
+   通用按钮样式
+   ============================================ */
+.btn {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-full;
+  font-size: 32rpx;
+  font-weight: 600;
+  padding: 24rpx 48rpx;
+  transition: all $duration-normal ease;
+  border: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.flex-center {
+.btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background: $gradient-btn;
+  color: $text-white;
+  box-shadow: 0 8rpx 24rpx rgba(123, 198, 126, 0.35);
+}
+
+.btn-primary:active {
+  box-shadow: 0 4rpx 12rpx rgba(123, 198, 126, 0.25);
+}
+
+.btn-secondary {
+  background: $gradient-hero;
+  color: $text-white;
+  box-shadow: 0 8rpx 24rpx rgba(91, 164, 245, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 3rpx solid $brand-green;
+  color: $brand-green;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.8);
+  color: $text-primary;
+  border: 2rpx solid $border-color;
+}
+
+.btn-sm {
+  font-size: 26rpx;
+  padding: 16rpx 32rpx;
+}
+
+.btn-lg {
+  font-size: 36rpx;
+  padding: 28rpx 56rpx;
+}
+
+/* ============================================
+   底部 TabBar
+   ============================================ */
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100rpx;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border-top: 1rpx solid $border-light;
+  z-index: 100;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabbar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100%;
+  color: $text-hint;
+  font-size: 22rpx;
+  transition: all $duration-normal;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabbar-item.active {
+  color: $brand-green;
+}
+
+.tabbar-icon {
+  font-size: 44rpx;
+  margin-bottom: 4rpx;
+}
+
+/* ============================================
+   页面容器
+   ============================================ */
+.page-container {
+  min-height: 100vh;
+  background: $bg-child;
+  padding: $spacing-lg;
+  padding-bottom: calc(120rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+}
+
+.page-container-parent {
+  min-height: 100vh;
+  background: $bg-parent;
+}
+
+/* ============================================
+   打字机效果
+   ============================================ */
+@keyframes typing {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.typing-char {
+  animation: typing $duration-typing linear;
+  display: inline-block;
+}
+
+/* ============================================
+   星星/徽章动画
+   ============================================ */
+@keyframes star-pop {
+  0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+  60% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+  80% { transform: scale(0.9) rotate(-5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.star-pop {
+  animation: star-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ============================================
+   进度条
+   ============================================ */
+.progress-bar {
+  height: 12rpx;
+  background: $border-light;
+  border-radius: $radius-full;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: $gradient-hero;
+  border-radius: $radius-full;
+  transition: width 400ms ease-out;
+}
+
+.progress-fill-green {
+  background: $gradient-btn;
+}
+
+/* ============================================
+   分割线
+   ============================================ */
+.divider {
+  height: 1rpx;
+  background: $border-color;
+  margin: $spacing-md 0;
+}
+
+/* ============================================
+   空状态
+   ============================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xl * 2;
+  color: $text-hint;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: $spacing-lg;
+  opacity: 0.6;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: $text-secondary;
+  text-align: center;
+}
+
+/* ============================================
+   品牌元素
+   ============================================ */
+/* 星星 */
+.star-icon {
+  color: $brand-yellow;
+  text-shadow: 0 0 8rpx rgba(249, 200, 70, 0.5);
+}
+
+/* 吉祥物容器 */
+.mascot-container {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
-.flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.text-primary {
-  color: $text-primary;
-}
-
-.text-secondary {
-  color: $text-secondary;
-}
-
-.mt-sm { margin-top: $spacing-sm; }
-.mt-md { margin-top: $spacing-md; }
-.mt-lg { margin-top: $spacing-lg; }
-
-.mb-sm { margin-bottom: $spacing-sm; }
-.mb-md { margin-bottom: $spacing-md; }
-.mb-lg { margin-bottom: $spacing-lg; }
-
-/* 品牌色工具类 */
-.bg-primary { background-color: $primary-color; }
-.bg-secondary { background-color: $secondary-color; }
-.bg-accent { background-color: $accent-color; }
-
-.text-primary-color { color: $primary-color; }
-.text-secondary-color { color: $secondary-color; }
-.text-accent { color: $accent-color; }

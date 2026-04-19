@@ -14,7 +14,8 @@ const SessionSchema = new mongoose.Schema({
   sceneId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Scene',
-    required: true
+    required: true,
+    index: true
   },
   status: {
     type: String,

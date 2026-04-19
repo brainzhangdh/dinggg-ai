@@ -7,7 +7,9 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest --coverage",
-    "lint": "eslint src/"
+    "test:api": "node scripts/testApi.js",
+    "lint": "eslint src/",
+    "init-db": "node scripts/initDb.js"
   },
   "dependencies": {
     "axios": "^1.6.8",

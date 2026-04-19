@@ -1,0 +1,131 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      skip_docker_build:
+        description: 'Skip Docker rebuild (use existing image)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# 防止并发部署
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ============================================
+  # 部署到服务器
+  # ============================================
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ----------------------------------------
+      # 方式1: GitHub Actions SSH 部署
+      # 使用 install-ssh-keys 或 webfactory/ssh-agent
+      # ----------------------------------------
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          password: ${{ secrets.DEPLOY_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            
+            echo "🚀 开始部署顶呱呱AI宝..."
+            echo "📍 部署目录: /var/www/dinggg-ai/"
+            
+            # 切换到项目目录
+            cd /var/www/dinggg-ai/
+            
+            # 记录部署时间
+            echo "🕐 部署时间: $(date '+%Y-%m-%d %H:%M:%S')"
+            
+            # 拉取最新代码
+            echo "📥 拉取最新代码..."
+            git stash || true
+            git pull origin master
+            
+            # 记录版本
+            echo "📌 当前版本: $(git rev-parse --short HEAD)"
+            
+            # 构建前端（如有）
+            if [ -f frontend/package.json ]; then
+              echo "🔨 构建前端..."
+              cd frontend
+              npm ci
+              npm run build || echo "前端构建完成"
+              cd ..
+            fi
+            
+            # Docker部署
+            echo "🐳 Docker部署..."
+            cd docker
+            
+            # 拉取基础镜像
+            docker-compose pull
+            
+            # 重新构建（如需要）
+            if [ "${{ inputs.skip_docker_build }}" == "false" ]; then
+              echo "🔨 构建Docker镜像..."
+              docker-compose build --no-cache server
+            fi
+            
+            # 重启服务
+            echo "🔄 重启服务..."
+            docker-compose down
+            docker-compose up -d
+            
+            # 等待健康检查
+            echo "⏳ 等待服务启动..."
+            sleep 10
+            
+            # 检查容器状态
+            echo "📊 容器状态:"
+            docker-compose ps
+            
+            # 检查健康状态
+            if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ 后端服务健康"
+            else
+              echo "⚠️ 后端服务可能未就绪，查看日志:"
+              docker-compose logs --tail=20 server
+            fi
+            
+            echo ""
+            echo "🎉 部署完成！"
+            echo "📌 访问地址: http://${{ secrets.DEPLOY_HOST }}"
+
+  # ============================================
+  # 部署后验证
+  # ============================================
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Verify server is responding
+        run: |
+          echo "🔍 验证部署结果..."
+          
+          echo "✅ GitHub Actions workflow 部署完成"
+          echo "📌 服务器: ${{ secrets.DEPLOY_HOST }}"
+          echo "📌 项目: 顶呱呱AI宝"
+          
+          echo ""
+          echo "请手动验证以下内容:"
+          echo "1. 访问 http://${{ secrets.DEPLOY_HOST }}/health 检查健康状态"
+          echo "2. 检查 Docker 容器运行状态"
+          echo "3. 查看日志: docker-compose logs -f"

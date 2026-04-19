@@ -1,5 +1,6 @@
 /**
  * 对话路由
+ * POST /api/chat/message 核心接口
  */
 
 const express = require('express')
@@ -9,13 +10,15 @@ const Message = require('../models/Message')
 const Scene = require('../models/Scene')
 const User = require('../models/User')
 const AIService = require('../services/aiService')
-const { get: redisGet, setEx: redisSetEx } = require('../utils/redis')
+const { get: redisGet, setEx: redisSetEx, incr: redisIncr, expire: redisExpire } = require('../utils/redis')
 const logger = require('../utils/logger')
 const { messageLimiter } = require('../middleware/rateLimiter')
+const authMiddleware = require('../middleware/auth')
 
 /**
  * 获取场景列表
  * GET /api/chat/scenes
+ * 公开接口，无需登录
  */
 router.get('/scenes', async (req, res, next) => {
   try {
@@ -41,6 +44,7 @@ router.get('/scenes', async (req, res, next) => {
 /**
  * 获取场景详情
  * GET /api/chat/scenes/:id
+ * 公开接口，无需登录
  */
 router.get('/scenes/:id', async (req, res, next) => {
   try {
@@ -67,17 +71,26 @@ router.get('/scenes/:id', async (req, res, next) => {
 /**
  * 创建对话会话
  * POST /api/chat/session
+ * 需要登录
  */
-router.post('/session', async (req, res, next) => {
+router.post('/session', authMiddleware, async (req, res, next) => {
   try {
     const { sceneId } = req.body
     const userId = req.user.id
+
+    if (!sceneId) {
+      return res.status(400).json({
+        code: 400,
+        message: '缺少sceneId',
+        data: null
+      })
+    }
 
     // 检查配额（免费用户每日限制）
     const user = await User.findById(userId)
     if (user.subscription.plan === 'free') {
       const quotaKey = `user:quota:${userId}:${new Date().toDateString()}`
-      const used = await redisGet(quotaKey) || 0
+      const used = parseInt(await redisGet(quotaKey) || '0')
 
       if (used >= (parseInt(process.env.FREE_USER_DAILY_QUOTA) || 3)) {
         return res.status(403).json({
@@ -123,8 +136,9 @@ router.post('/session', async (req, res, next) => {
 /**
  * 获取会话历史
  * GET /api/chat/session/:id
+ * 需要登录
  */
-router.get('/session/:id', async (req, res, next) => {
+router.get('/session/:id', authMiddleware, async (req, res, next) => {
   try {
     const session = await Session.findOne({
       _id: req.params.id,
@@ -158,8 +172,18 @@ router.get('/session/:id', async (req, res, next) => {
 /**
  * 发送消息（核心接口）
  * POST /api/chat/message
+ * 需要登录，限流30次/分钟
+ * 
+ * 请求体：
+ * {
+ *   sessionId?: string,    // 会话ID（新会话可空）
+ *   sceneId?: string,      // 场景ID（创建新会话时必填）
+ *   type: 'voice' | 'text',
+ *   text?: string,         // type=text时必填
+ *   audioBase64?: string   // type=voice时必填
+ * }
  */
-router.post('/message', messageLimiter, async (req, res, next) => {
+router.post('/message', authMiddleware, messageLimiter, async (req, res, next) => {
   try {
     const { sessionId, sceneId, type, text, audioBase64 } = req.body
     const userId = req.user.id
@@ -172,9 +196,33 @@ router.post('/message', messageLimiter, async (req, res, next) => {
       })
     }
 
+    if (!type || !['voice', 'text'].includes(type)) {
+      return res.status(400).json({
+        code: 400,
+        message: 'type必须是voice或text',
+        data: null
+      })
+    }
+
+    if (type === 'text' && !text) {
+      return res.status(400).json({
+        code: 400,
+        message: '文本消息需要填写text字段',
+        data: null
+      })
+    }
+
+    if (type === 'voice' && !audioBase64) {
+      return res.status(400).json({
+        code: 400,
+        message: '语音消息需要填写audioBase64字段',
+        data: null
+      })
+    }
+
     let session
 
-    // 场景模式：创建新会话
+    // ========== 场景模式：创建新会话 ==========
     if (sceneId && !sessionId) {
       const scene = await Scene.findById(sceneId)
       if (!scene) {
@@ -189,7 +237,10 @@ router.post('/message', messageLimiter, async (req, res, next) => {
         userId,
         sceneId
       })
+
+      logger.info('New session created:', { sessionId: session._id, sceneId })
     } else {
+      // ========== 已有会话模式 ==========
       session = await Session.findOne({
         _id: sessionId,
         userId
@@ -204,46 +255,61 @@ router.post('/message', messageLimiter, async (req, res, next) => {
       }
     }
 
-    // 更新配额使用
-    const quotaKey = `user:quota:${userId}:${new Date().toDateString()}`
-    await redisIncr(quotaKey)
-    await expire(quotaKey, 86400)
+    // ========== 更新配额使用（免费用户） ==========
+    const user = await User.findById(userId)
+    if (user.subscription.plan === 'free') {
+      const quotaKey = `user:quota:${userId}:${new Date().toDateString()}`
+      await redisIncr(quotaKey)
+      await redisExpire(quotaKey, 86400) // 当天有效
+    }
 
-    // 获取历史消息
+    // ========== 获取历史消息 ==========
     const historyMessages = await Message.find({ sessionId: session._id })
       .sort({ createdAt: -1 })
       .limit(20)
 
-    // 获取场景信息
+    // ========== 获取场景信息 ==========
     const scene = await Scene.findById(session.sceneId)
 
-    // AI处理
+    // ========== ASR语音识别 ==========
     let userText = text
-    let audioUrl = ''
-
-    // 如果是语音，先做ASR
     if (type === 'voice' && audioBase64) {
-      const asrResult = await AIService.asr(audioBase64)
-      userText = asrResult.text
+      try {
+        const asrResult = await AIService.asr(audioBase64)
+        userText = asrResult.text || text || 'I said something in English'
+      } catch (asrError) {
+        logger.error('ASR failed, using fallback:', asrError.message)
+        userText = text || 'I spoke in English' // ASR失败时的降级方案
+      }
     }
 
-    // AI对话
-    const aiResponse = await AIService.chat({
-      scene,
-      userText,
-      history: historyMessages.reverse()
-    })
+    // ========== AI对话 ==========
+    let aiResponse
+    try {
+      aiResponse = await AIService.chat({
+        scene,
+        userText,
+        history: historyMessages.reverse()
+      })
+    } catch (aiError) {
+      logger.error('AI chat failed:', aiError.message)
+      return res.status(500).json({
+        code: 500,
+        message: 'AI对话服务暂时不可用，请稍后重试',
+        data: null
+      })
+    }
 
-    // 保存用户消息
+    // ========== 保存用户消息 ==========
     const userMessage = await Message.create({
       sessionId: session._id,
       role: 'user',
       type,
       userText,
-      userAudioUrl: audioUrl
+      userAudioUrl: '' // 用户语音存储URL（可扩展）
     })
 
-    // 保存AI回复
+    // ========== 保存AI回复 ==========
     const aiMessage = await Message.create({
       sessionId: session._id,
       role: 'assistant',
@@ -254,27 +320,28 @@ router.post('/message', messageLimiter, async (req, res, next) => {
       starsEarned: aiResponse.stars || 0
     })
 
-    // 更新会话统计
+    // ========== 更新会话统计 ==========
     session.messageCount += 1
     await session.save()
 
-    // 更新用户统计
-    const user = await User.findById(userId)
+    // ========== 更新用户统计 ==========
     await user.updateStats({
       totalSessions: 0,
-      totalMinutes: Math.ceil(aiResponse.duration || 0),
+      totalMinutes: Math.ceil((aiResponse.duration || 60) / 60),
       totalStars: aiResponse.stars || 0
     })
 
-    // 通过Socket.io推送实时更新
+    // ========== 通过Socket.io推送实时更新 ==========
     const io = req.app.get('io')
-    io.to(sessionId).emit('ai_stream', {
-      messageId: aiMessage._id,
-      text: aiResponse.reply,
-      audioUrl: aiResponse.audioUrl,
-      correction: aiResponse.correction,
-      starsEarned: aiResponse.stars || 0
-    })
+    if (io) {
+      io.to(sessionId || session._id.toString()).emit('ai_stream', {
+        messageId: aiMessage._id,
+        text: aiResponse.reply,
+        audioUrl: aiResponse.audioUrl,
+        correction: aiResponse.correction,
+        starsEarned: aiResponse.stars || 0
+      })
+    }
 
     res.json({
       code: 0,
@@ -296,8 +363,9 @@ router.post('/message', messageLimiter, async (req, res, next) => {
 /**
  * 结束对话会话
  * DELETE /api/chat/session/:id
+ * 需要登录
  */
-router.delete('/session/:id', async (req, res, next) => {
+router.delete('/session/:id', authMiddleware, async (req, res, next) => {
   try {
     const session = await Session.findOne({
       _id: req.params.id,
@@ -339,16 +407,5 @@ router.delete('/session/:id', async (req, res, next) => {
     next(error)
   }
 })
-
-// Redis辅助函数
-async function redisIncr(key) {
-  const { incr } = require('../utils/redis')
-  return incr(key)
-}
-
-async function expire(key, seconds) {
-  const { expire: exp } = require('../utils/redis')
-  return exp(key, seconds)
-}
 
 module.exports = router

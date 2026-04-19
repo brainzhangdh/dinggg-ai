@@ -1,130 +1,258 @@
-<!-- 顶呱呱AI宝 - 对话页面 -->
+<!-- 顶呱呱AI宝 - AI对话页面 -->
 <template>
   <view class="chat-page">
     <!-- 顶部导航 -->
     <view class="chat-header">
-      <view class="back-btn" @tap="goBack">←</view>
-      <view class="scene-info">
-        <text class="scene-name">{{ sceneName }}</text>
-        <text class="session-status">进行中</text>
+      <view class="header-left">
+        <view class="back-btn" @tap="goBack">←</view>
+        <view class="frog-header">
+          <FrogCharacter size="xs" :mood="frogMood" :showHat="true" />
+        </view>
+        <view class="scene-info">
+          <text class="scene-name">{{ sceneName }}</text>
+          <text class="session-status">进行中 · {{ currentRound }}/{{ totalRounds }}</text>
+        </view>
       </view>
-      <view class="stars-badge">
-        ⭐ {{ stars }}
+      <view class="header-right">
+        <view class="progress-ring-wrap">
+          <view class="progress-ring">
+            <svg viewBox="0 0 36 36" class="ring-svg">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3" />
+              <circle
+                cx="18" cy="18" r="15" fill="none"
+                stroke="white" stroke-width="3"
+                stroke-linecap="round"
+                :stroke-dasharray="`${progressArc} 94`"
+                transform="rotate(-90 18 18)"
+              />
+            </svg>
+            <text class="ring-text">{{ currentRound }}/{{ totalRounds }}</text>
+          </view>
+        </view>
+        <view class="stars-badge" @tap="showStarsDetail">
+          <text class="stars-icon">⭐</text>
+          <text class="stars-num">{{ stars }}</text>
+        </view>
       </view>
     </view>
 
-    <!-- 对话区域 -->
+    <!-- 对话进度条 -->
+    <view class="progress-bar-wrap">
+      <view class="progress-bar-track">
+        <view class="progress-bar-fill" :style="{ width: progressPercent + '%' }"></view>
+      </view>
+    </view>
+
+    <!-- 消息列表 -->
     <scroll-view
       class="message-list"
       :scroll-top="scrollTop"
       scroll-y
       :show-scrollbar="false"
+      :refresher-enabled="false"
     >
       <!-- AI开场白 -->
-      <view class="message-wrapper assistant">
-        <view class="ai-avatar">🤖</view>
-        <view class="message-bubble">
-          <text class="message-text">{{ initialMessage }}</text>
-        </view>
+      <view class="opening-section">
+        <ChatBubble
+          role="assistant"
+          type="text"
+          :text="initialMessage"
+          :typing="true"
+          :showTime="true"
+          timeText="刚刚"
+        />
       </view>
 
       <!-- 消息列表 -->
       <view
-        v-for="msg in messages"
+        v-for="(msg, idx) in messages"
         :key="msg.id"
-        class="message-wrapper"
-        :class="msg.role"
+        class="message-item"
       >
-        <!-- 用户消息 -->
-        <template v-if="msg.role === 'user'">
-          <view class="message-bubble user">
-            <text class="message-text">{{ msg.text }}</text>
-            <view v-if="msg.audioUrl" class="audio-indicator">🎤</view>
-          </view>
-        </template>
-
-        <!-- AI回复 -->
-        <template v-else>
-          <view class="ai-avatar">🤖</view>
-          <view class="message-bubble assistant">
-            <text class="message-text">{{ msg.text }}</text>
-            <!-- 纠错提示 -->
-            <view v-if="msg.correction && msg.correction.hasError" class="correction-tip">
-              <text class="tip-label">💡 小建议：</text>
-              <text class="tip-text">{{ msg.correction.tip }}</text>
-            </view>
-          </view>
-        </template>
+        <ChatBubble
+          :role="msg.role"
+          :type="msg.type || 'text'"
+          :text="msg.text"
+          :audioUrl="msg.audioUrl"
+          :duration="msg.duration"
+          :correction="msg.correction"
+          :encourageText="msg.encourageText"
+          :showTime="true"
+          :timeText="getTimeText(msg.timestamp)"
+          :userAvatar="userInfo.avatar"
+          :typing="false"
+          @play-audio="playAudio(msg.audioUrl)"
+        />
       </view>
 
       <!-- 加载中 -->
-      <view v-if="isLoading" class="message-wrapper assistant">
-        <view class="ai-avatar">🤖</view>
-        <view class="message-bubble loading">
-          <text class="loading-text">思考中...</text>
+      <view v-if="isLoading" class="loading-wrapper">
+        <view class="loading-dots">
+          <view class="dot" v-for="n in 3" :key="n" :style="{ animationDelay: `${n * 0.15}s` }"></view>
         </view>
+        <FrogCharacter size="xs" mood="curious" />
       </view>
+
+      <!-- 底部安全区 -->
+      <view class="list-bottom" />
     </scroll-view>
 
     <!-- 底部输入区 -->
     <view class="input-area">
       <!-- 打字输入模式 -->
-      <view v-if="inputMode === 'text'" class="text-input-wrapper">
+      <view v-if="inputMode === 'text'" class="text-input-mode">
         <input
           class="text-input"
           v-model="inputText"
-          placeholder="输入文字..."
+          placeholder="输入文字发送..."
           confirm-type="send"
           @confirm="sendTextMessage"
         />
-        <view class="send-btn" @tap="sendTextMessage">发送</view>
+        <view class="send-btn" @tap="sendTextMessage">
+          <text class="send-icon">➤</text>
+        </view>
       </view>
 
       <!-- 语音输入按钮 -->
       <view
-        class="voice-btn"
-        :class="{ recording: isRecording, 'large-mode': isTablet }"
-        @touchstart="startRecording"
-        @touchend="stopRecording"
-        @longpress="switchToText"
+        v-else
+        class="voice-input-wrap"
       >
-        <text class="voice-icon">{{ isRecording ? '🔴' : '🎤' }}</text>
-        <text class="voice-hint">{{ isRecording ? '松开发送' : '按住说话' }}</text>
+        <view
+          class="voice-btn-main"
+          :class="{ recording: isRecording, pressed: isPressed }"
+          @touchstart.prevent="onVoiceTouchStart"
+          @touchend.prevent="onVoiceTouchEnd"
+          @touchcancel="onVoiceTouchEnd"
+          @longpress="switchToTextMode"
+        >
+          <text class="voice-icon-main">{{ isRecording ? '🔴' : '🎤' }}</text>
+          <text class="voice-label">{{ isRecording ? '松开发送' : '按住说话' }}</text>
+          <!-- 录音波形（正在录音时） -->
+          <view v-if="isRecording" class="recording-wave">
+            <view class="wave-line" v-for="n in 8" :key="n" :style="{ animationDelay: `${n * 0.05}s` }"></view>
+          </view>
+        </view>
+
+        <!-- 取消录音 -->
+        <view v-if="isRecording" class="cancel-btn" @tap="cancelRecording">
+          <text>✕ 取消</text>
+        </view>
       </view>
 
-      <!-- 模式切换 -->
+      <!-- 模式切换按钮 -->
       <view class="mode-toggle" @tap="toggleInputMode">
-        {{ inputMode === 'voice' ? '⌨️' : '🎤' }}
+        <text>{{ inputMode === 'voice' ? '⌨️' : '🎤' }}</text>
+      </view>
+    </view>
+
+    <!-- 打卡完成弹窗 -->
+    <view v-if="showCompletionModal" class="completion-overlay" @tap="closeModal">
+      <view class="completion-modal" @tap.stop>
+        <FrogCharacter size="lg" mood="celebrate" :showHat="true" />
+        <text class="completion-title">太棒了！🎉</text>
+        <text class="completion-sub">本轮对话完成</text>
+        <view class="completion-stars">
+          <text class="completion-stars-label">获得</text>
+          <StarBadge type="star" count="+{{ earnedStars }}" :animate="true" size="lg" />
+          <text class="completion-stars-label">星星</text>
+        </view>
+        <view class="completion-stats">
+          <view class="stat-item">
+            <text class="stat-num">{{ sessionStats.turns }}</text>
+            <text class="stat-label">对话轮次</text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-num">{{ sessionStats.duration }}</text>
+            <text class="stat-label">分钟</text>
+          </view>
+        </view>
+        <view class="completion-btns">
+          <view class="btn btn-outline btn-sm" @tap="goHome">返回首页</view>
+          <view class="btn btn-primary btn-sm" @tap="continuePractice">继续练习</view>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import FrogCharacter from '@/components/FrogCharacter/FrogCharacter.vue'
+import ChatBubble from '@/components/ChatBubble/ChatBubble.vue'
+import StarBadge from '@/components/StarBadge/StarBadge.vue'
 
 // 页面参数
 const sceneId = ref('')
 const sceneName = ref('')
 
-// 对话相关
+// 对话
 const messages = ref([])
 const inputText = ref('')
 const inputMode = ref('voice') // 'voice' | 'text'
 const isRecording = ref(false)
+const isPressed = ref(false)
 const isLoading = ref(false)
 const scrollTop = ref(0)
 const stars = ref(0)
+const earnedStars = ref(0)
 const initialMessage = ref('')
+const currentRound = ref(1)
+const totalRounds = ref(5)
+const sessionStartTime = ref(null)
 
-// 屏幕信息
-const isTablet = ref(false)
+// 弹窗
+const showCompletionModal = ref(false)
+
+// 用户信息
+const userInfo = ref({
+  nickname: '',
+  avatar: ''
+})
 
 // 录音管理
 let recorderManager = null
 let audioContext = null
+let currentTempFile = ''
 
-// 初始化
+// AI情绪
+const frogMood = computed(() => {
+  if (isLoading.value) return 'curious'
+  if (messages.value.length > 0 && messages.value[messages.value.length - 1]?.correction?.show) return 'encourage'
+  if (currentRound.value >= totalRounds.value) return 'celebrate'
+  return 'happy'
+})
+
+// 进度环
+const progressArc = computed(() => {
+  const percent = currentRound.value / totalRounds.value
+  return 94 * percent
+})
+
+// 进度条
+const progressPercent = computed(() => {
+  return (currentRound.value / totalRounds.value) * 100
+})
+
+// 回合进度
+const sessionStats = computed(() => {
+  const minutes = sessionStartTime.value
+    ? Math.round((Date.now() - sessionStartTime.value) / 60000)
+    : 0
+  return {
+    turns: messages.value.length,
+    duration: minutes
+  }
+})
+
+function getTimeText(timestamp) {
+  if (!timestamp) return '刚刚'
+  const diff = Date.now() - timestamp
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.round(diff / 60000)}分钟前`
+  return '早些时候'
+}
+
 onMounted(() => {
   // 获取页面参数
   const pages = getCurrentPages()
@@ -133,216 +261,255 @@ onMounted(() => {
   sceneId.value = options.sceneId || ''
   sceneName.value = decodeURIComponent(options.sceneName || '情景对话')
 
-  // 获取屏幕信息
-  const sysInfo = uni.getSystemInfoSync()
-  isTablet.value = sysInfo.windowWidth >= 768
-
   // 初始化录音
   initRecorder()
-
-  // 初始化音频播放
   initAudio()
 
   // 加载初始消息
   loadInitialMessage()
+
+  // 加载用户信息
+  userInfo.value.avatar = uni.getStorageSync('avatar') || ''
+  sessionStartTime.value = Date.now()
 })
 
-// 初始化录音
 function initRecorder() {
   recorderManager = uni.getRecorderManager()
 
   recorderManager.onStop((res) => {
-    if (res.duration > 0) {
-      // 上传语音
-      uploadVoice(res.tempFilePath)
+    if (res.duration > 500 && currentTempFile) {
+      uploadVoice(currentTempFile, res.duration)
     }
+    currentTempFile = ''
   })
 
   recorderManager.onError((err) => {
     console.error('录音错误:', err)
-    uni.showToast({ title: '录音失败', icon: 'none' })
+    uni.showToast({ title: '录音失败，请重试', icon: 'none' })
+    isRecording.value = false
   })
 }
 
-// 初始化音频播放
 function initAudio() {
   audioContext = uni.createInnerAudioContext()
-  audioContext.onEnded(() => {
-    // 播放完毕
-  })
+  audioContext.onEnded(() => {})
 }
 
-// 加载初始消息
 async function loadInitialMessage() {
-  // TODO: 调用API获取开场白
-  initialMessage.value = `Hi there! 👋 I'm your English practice buddy! Let's talk about ${sceneName.value} together! You can say anything you want, and I'll help you practice. Ready?`
+  const messages_map = {
+    1: "Hi there! 👋 Let's talk about your favorite cartoon! What do you usually watch?",
+    2: "Hey! 🏫 How was your school today? Did you learn anything fun in English class?",
+    3: "Hi! 🤝 I'm Tom, nice to meet you! Where are you from?",
+    default: `Hi friend! 👋 Welcome to our English chat! Let's talk about ${sceneName.value} together!`
+  }
+  initialMessage.value = messages_map[sceneId.value] || messages_map.default
+  await nextTick()
+  scrollToBottom()
 }
 
-// 开始录音
-function startRecording(e) {
-  e.preventDefault()
-  isRecording.value = true
+// 语音TouchStart
+function onVoiceTouchStart(e) {
+  isPressed.value = true
+  setTimeout(() => {
+    if (isPressed.value) {
+      isRecording.value = true
+      startRecording()
+    }
+  }, 100)
+}
 
+// 语音TouchEnd
+function onVoiceTouchEnd() {
+  isPressed.value = false
+  if (isRecording.value) {
+    isRecording.value = false
+    stopRecording()
+  }
+}
+
+function startRecording() {
   recorderManager.start({
     format: 'mp3',
-    duration: 60000, // 60秒
+    duration: 60000,
     sampleRate: 16000,
     numberOfChannels: 1,
     encodeBitRate: 48000
   })
 }
 
-// 停止录音
 function stopRecording() {
-  if (!isRecording.value) return
-  isRecording.value = false
   recorderManager.stop()
 }
 
-// 上传语音
-async function uploadVoice(tempFilePath) {
+function cancelRecording() {
+  isRecording.value = false
+  currentTempFile = ''
+  recorderManager.stop()
+}
+
+async function uploadVoice(tempFilePath, duration) {
   isLoading.value = true
 
+  // 添加用户消息
+  const userMsg = {
+    id: Date.now(),
+    role: 'user',
+    type: 'audio',
+    audioUrl: tempFilePath,
+    duration: formatDuration(duration),
+    timestamp: Date.now()
+  }
+  messages.value.push(userMsg)
+  scrollToBottom()
+
   try {
-    // 1. 获取Token (假设已登录)
-    const token = uni.getStorageSync('token')
-
-    // 2. 调用API
-    const res = await uni.uploadFile({
-      url: 'https://api.dinggg.com/api/chat/message',
-      filePath: tempFilePath,
-      name: 'audio',
-      header: {
-        Authorization: `Bearer ${token}`
-      },
-      formData: {
-        sceneId: sceneId.value,
-        sessionId: getSessionId(),
-        type: 'voice'
-      }
-    })
-
-    const data = JSON.parse(res.data)
-
-    if (data.code === 0) {
-      handleAIReply(data.data)
-    } else {
-      uni.showToast({ title: data.message || '发送失败', icon: 'none' })
-    }
-  } catch (err) {
-    console.error('发送失败:', err)
-    uni.showToast({ title: '发送失败', icon: 'none' })
+    await simulateAIReply()
   } finally {
     isLoading.value = false
   }
 }
 
-// 发送文字消息
+// 模拟AI回复（实际项目替换为API调用）
+async function simulateAIReply() {
+  const responses = [
+    {
+      text: "That's wonderful! 🌟 Tell me more about it! What is your favorite character?",
+      correction: null,
+      encourageText: null
+    },
+    {
+      text: "Great job! You're speaking really well! 💪",
+      correction: {
+        show: true,
+        text: "想说 'watching cartoons' 的话，可以说 'I like watching cartoons on weekends!' 会更完整哦～"
+      },
+      encourageText: "继续保持！💪"
+    },
+    {
+      text: "Excellent! 🌟 Your pronunciation is getting better! Keep it up!",
+      correction: null,
+      encourageText: "发音越来越棒了！🎉"
+    }
+  ]
+
+  const response = responses[Math.floor(Math.random() * responses.length)]
+
+  await new Promise(resolve => setTimeout(resolve, 1500))
+
+  const aiMsg = {
+    id: Date.now(),
+    role: 'assistant',
+    type: 'text',
+    text: response.text,
+    correction: response.correction,
+    encourageText: response.encourageText,
+    starsEarned: Math.floor(Math.random() * 3) + 1,
+    timestamp: Date.now()
+  }
+
+  messages.value.push(aiMsg)
+  stars.value += aiMsg.starsEarned
+  earnedStars.value += aiMsg.starsEarned
+  currentRound.value++
+
+  if (currentRound.value > totalRounds.value) {
+    setTimeout(() => {
+      showCompletionModal.value = true
+    }, 1000)
+  }
+
+  scrollToBottom()
+}
+
+function formatDuration(ms) {
+  const sec = Math.floor(ms / 1000)
+  const min = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${min}:${s.toString().padStart(2, '0')}`
+}
+
 async function sendTextMessage() {
   if (!inputText.value.trim()) return
 
   const text = inputText.value.trim()
   inputText.value = ''
 
-  // 添加用户消息
   messages.value.push({
     id: Date.now(),
     role: 'user',
-    text: text
+    type: 'text',
+    text,
+    timestamp: Date.now()
   })
 
   scrollToBottom()
   isLoading.value = true
 
   try {
-    const token = uni.getStorageSync('token')
-    const res = await uni.request({
-      url: 'https://api.dinggg.com/api/chat/message',
-      method: 'POST',
-      header: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        sceneId: sceneId.value,
-        sessionId: getSessionId(),
-        type: 'text',
-        text: text
-      }
-    })
-
-    if (res.data.code === 0) {
-      handleAIReply(res.data.data)
-    }
-  } catch (err) {
-    console.error('发送失败:', err)
+    await simulateAIReply()
   } finally {
     isLoading.value = false
   }
 }
 
-// 处理AI回复
-function handleAIReply(data) {
-  messages.value.push({
-    id: Date.now(),
-    role: 'assistant',
-    text: data.text,
-    audioUrl: data.audioUrl,
-    correction: data.correction
-  })
-
-  stars.value += data.starsEarned || 0
-  scrollToBottom()
-
-  // 播放AI语音
-  if (data.audioUrl) {
-    playAudio(data.audioUrl)
-  }
-}
-
-// 播放音频
 function playAudio(url) {
   audioContext.src = url
   audioContext.play()
 }
 
-// 滚动到底部
 function scrollToBottom() {
   nextTick(() => {
     scrollTop.value = Date.now()
   })
 }
 
-// 切换输入模式
 function toggleInputMode() {
   inputMode.value = inputMode.value === 'voice' ? 'text' : 'voice'
 }
 
-// 切换到打字模式
-function switchToText() {
+function switchToTextMode() {
   inputMode.value = 'text'
 }
 
-// 获取/创建会话ID
-function getSessionId() {
-  let sessionId = uni.getStorageSync('currentSessionId')
-  if (!sessionId) {
-    sessionId = 'session_' + Date.now()
-    uni.setStorageSync('currentSessionId', sessionId)
-  }
-  return sessionId
-}
-
-// 返回
 function goBack() {
-  uni.navigateBack()
+  if (messages.value.length > 0) {
+    uni.showModal({
+      title: '离开对话？',
+      content: '离开后本轮进度不会保存哦～',
+      confirmText: '确定离开',
+      cancelText: '继续对话',
+      success: (res) => {
+        if (res.confirm) uni.navigateBack()
+      }
+    })
+  } else {
+    uni.navigateBack()
+  }
 }
 
-// 页面卸载
+function showStarsDetail() {
+  uni.showToast({ title: `今日获得 ${stars.value} 颗星星`, icon: 'none' })
+}
+
+function closeModal() {
+  showCompletionModal.value = false
+}
+
+function goHome() {
+  showCompletionModal.value = false
+  uni.switchTab({ url: '/pages/index/index' })
+}
+
+function continuePractice() {
+  showCompletionModal.value = false
+  currentRound.value = 1
+  messages.value = []
+  sessionStartTime.value = Date.now()
+  loadInitialMessage()
+}
+
 onUnmounted(() => {
-  if (audioContext) {
-    audioContext.destroy()
-  }
+  if (audioContext) audioContext.destroy()
 })
 </script>
 
@@ -351,197 +518,395 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: $bg-color;
+  background: $bg-child;
 }
 
+/* 顶部导航 */
 .chat-header {
   display: flex;
   align-items: center;
-  padding: $spacing-md;
-  background: $primary-color;
-  color: $text-white;
+  justify-content: space-between;
+  padding: calc(#{$spacing-sm} + constant(safe-area-inset-top)) $spacing-lg $spacing-sm;
+  padding: calc(#{$spacing-sm} + env(safe-area-inset-top)) $spacing-lg $spacing-sm;
+  background: $gradient-hero;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
 }
 
 .back-btn {
-  font-size: 24px;
-  padding: $spacing-sm $spacing-md;
+  font-size: 40rpx;
+  color: rgba(255,255,255,0.9);
+  padding: $spacing-xs $spacing-sm;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.frog-header {
+  display: flex;
+  align-items: center;
 }
 
 .scene-info {
-  flex: 1;
-  margin-left: $spacing-sm;
+  display: flex;
+  flex-direction: column;
 }
 
 .scene-name {
-  font-size: 16px;
+  font-size: 30rpx;
   font-weight: 600;
-  display: block;
+  color: $text-white;
 }
 
 .session-status {
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.75);
 }
 
-.stars-badge {
-  background: rgba(255,255,255,0.2);
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-}
-
-.message-list {
-  flex: 1;
-  padding: $spacing-md;
-  overflow-y: auto;
-}
-
-.message-wrapper {
-  display: flex;
-  margin-bottom: $spacing-md;
-  align-items: flex-start;
-
-  &.user {
-    flex-direction: row-reverse;
-
-    .message-bubble {
-      background: $primary-color;
-      color: $text-white;
-      border-radius: $radius-lg $radius-lg $radius-sm $radius-lg;
-      margin-right: $spacing-sm;
-      max-width: 75%;
-    }
-  }
-
-  &.assistant {
-    .ai-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #E8E6FF, #D4D0FF);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      margin-right: $spacing-sm;
-    }
-
-    .message-bubble {
-      background: $card-bg;
-      border-radius: $radius-lg $radius-lg $radius-lg $radius-sm;
-      padding: $spacing-md;
-      box-shadow: $shadow-sm;
-      max-width: 75%;
-    }
-  }
-}
-
-.message-text {
-  font-size: 15px;
-  line-height: 1.6;
-  word-break: break-word;
-}
-
-.correction-tip {
-  margin-top: $spacing-sm;
-  padding: $spacing-sm;
-  background: #FFF9E6;
-  border-radius: $radius-sm;
-  font-size: 13px;
-}
-
-.tip-label {
-  color: $accent-color;
-  font-weight: 600;
-}
-
-.audio-indicator {
-  display: inline-block;
-  margin-left: $spacing-xs;
-}
-
-.loading-text {
-  color: $text-hint;
-  font-style: italic;
-}
-
-.input-area {
-  padding: $spacing-md;
-  background: $card-bg;
+.header-right {
   display: flex;
   align-items: center;
   gap: $spacing-md;
-  border-top: 1px solid #eee;
 }
 
-.text-input-wrapper {
+.progress-ring-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.progress-ring {
+  position: relative;
+  width: 72rpx;
+  height: 72rpx;
+}
+
+.ring-svg {
+  width: 100%;
+  height: 100%;
+  circle {
+    transition: stroke-dasharray 0.4s ease;
+  }
+}
+
+.ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: $text-white;
+}
+
+.stars-badge {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  background: rgba(255,255,255,0.2);
+  padding: 8rpx 16rpx;
+  border-radius: $radius-full;
+
+  .stars-icon { font-size: 28rpx; }
+  .stars-num {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: $text-white;
+  }
+}
+
+/* 进度条 */
+.progress-bar-wrap {
+  padding: 0 $spacing-lg;
+  background: $gradient-hero;
+  padding-bottom: $spacing-sm;
+  flex-shrink: 0;
+}
+
+.progress-bar-track {
+  height: 6rpx;
+  background: rgba(255,255,255,0.3);
+  border-radius: $radius-full;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: white;
+  border-radius: $radius-full;
+  transition: width 0.4s ease-out;
+}
+
+/* 消息列表 */
+.message-list {
+  flex: 1;
+  padding: $spacing-lg;
+  overflow-y: auto;
+}
+
+.opening-section {
+  margin-bottom: $spacing-lg;
+}
+
+.message-item {
+  margin-bottom: $spacing-sm;
+}
+
+.loading-wrapper {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md 0;
+}
+
+.loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+
+  .dot {
+    width: 12rpx;
+    height: 12rpx;
+    background: $brand-blue;
+    border-radius: 50%;
+    animation: dot-pulse 0.8s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes dot-pulse {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+.list-bottom {
+  height: $spacing-lg;
+}
+
+/* 底部输入区 */
+.input-area {
+  padding: $spacing-md $spacing-lg;
+  padding-bottom: calc(#{$spacing-md} + constant(safe-area-inset-bottom));
+  padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+  background: $bg-card;
+  border-top: 1rpx solid $border-light;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex-shrink: 0;
+}
+
+/* 打字输入 */
+.text-input-mode {
   flex: 1;
   display: flex;
+  align-items: center;
   gap: $spacing-sm;
 }
 
 .text-input {
   flex: 1;
-  height: 40px;
-  background: #f5f5f5;
-  border-radius: 20px;
-  padding: 0 $spacing-md;
-  font-size: 14px;
+  height: 72rpx;
+  background: #F5F7FA;
+  border-radius: 36rpx;
+  padding: 0 $spacing-lg;
+  font-size: 28rpx;
+  color: $text-primary;
+
+  &::placeholder { color: $text-hint; }
 }
 
 .send-btn {
-  width: 60px;
-  height: 40px;
-  background: $primary-color;
-  color: white;
-  border-radius: 20px;
+  width: 72rpx;
+  height: 72rpx;
+  background: $gradient-btn;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  box-shadow: 0 4rpx 12rpx rgba(123, 198, 126, 0.35);
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+
+  .send-icon {
+    font-size: 28rpx;
+    color: white;
+  }
 }
 
-.voice-btn {
+/* 语音输入 */
+.voice-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-lg;
+}
+
+.voice-btn-main {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, $primary-color, #8B83FF);
-  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.4);
+  background: $gradient-btn;
+  box-shadow: 0 8rpx 24rpx rgba(123, 198, 126, 0.4);
   transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+
+  &.pressed {
+    transform: scale(0.95);
+    background: linear-gradient(135deg, darken($brand-green, 5%), darken($success-green, 5%));
+  }
 
   &.recording {
-    background: linear-gradient(135deg, $error-color, #FF6B6B);
-    transform: scale(1.1);
+    background: linear-gradient(135deg, $brand-orange, #FF6B35);
+    box-shadow: 0 8rpx 24rpx rgba(251, 146, 60, 0.5);
+    animation: pulse-ring 1s ease-in-out infinite;
   }
 
-  &.large-mode {
-    width: 96px;
-    height: 96px;
+  .voice-icon-main {
+    font-size: 44rpx;
+    margin-bottom: 4rpx;
+  }
+
+  .voice-label {
+    font-size: 20rpx;
+    color: rgba(255,255,255,0.9);
+    font-weight: 500;
   }
 }
 
-.voice-icon {
-  font-size: 28px;
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.5); }
+  50% { box-shadow: 0 0 0 16rpx rgba(251, 146, 60, 0); }
 }
 
-.voice-hint {
-  font-size: 10px;
-  color: rgba(255,255,255,0.9);
-  margin-top: 2px;
+.recording-wave {
+  position: absolute;
+  bottom: 8rpx;
+  display: flex;
+  align-items: flex-end;
+  gap: 3rpx;
+  height: 24rpx;
+
+  .wave-line {
+    width: 4rpx;
+    background: rgba(255,255,255,0.8);
+    border-radius: 2rpx;
+    animation: wave-bar 0.5s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes wave-bar {
+  from { height: 4rpx; }
+  to { height: 20rpx; }
+}
+
+.cancel-btn {
+  font-size: 26rpx;
+  color: $text-secondary;
+  padding: $spacing-sm $spacing-md;
+  background: #f5f5f5;
+  border-radius: $radius-full;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mode-toggle {
-  width: 40px;
-  height: 40px;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
-  background: #f5f5f5;
+  background: #F5F7FA;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 32rpx;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 完成弹窗 */
+.completion-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(8rpx);
+  -webkit-backdrop-filter: blur(8rpx);
+}
+
+.completion-modal {
+  background: $bg-card;
+  border-radius: $radius-xl;
+  padding: $spacing-xl $spacing-lg;
+  width: 600rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-md;
+  box-shadow: $shadow-lg;
+}
+
+.completion-title {
+  font-size: 48rpx;
+  font-weight: 800;
+  color: $text-primary;
+}
+
+.completion-sub {
+  font-size: 28rpx;
+  color: $text-secondary;
+}
+
+.completion-stars {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin: $spacing-sm 0;
+
+  .completion-stars-label {
+    font-size: 28rpx;
+    color: $text-secondary;
+  }
+}
+
+.completion-stats {
+  display: flex;
+  gap: $spacing-xl;
+  margin: $spacing-sm 0;
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4rpx;
+
+    .stat-num {
+      font-size: 40rpx;
+      font-weight: 800;
+      color: $brand-blue;
+    }
+
+    .stat-label {
+      font-size: 24rpx;
+      color: $text-secondary;
+    }
+  }
+}
+
+.completion-btns {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-sm;
+  width: 100%;
 }
 </style>

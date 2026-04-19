@@ -14,7 +14,8 @@ const UserSchema = new mongoose.Schema({
   },
   unionid: {
     type: String,
-    sparse: true
+    sparse: true,
+    index: true
   },
   nickname: {
     type: String,
@@ -42,7 +43,8 @@ const UserSchema = new mongoose.Schema({
   },
   parentCode: {
     type: String,
-    length: 6
+    length: 6,
+    index: true
   },
   subscription: {
     plan: {

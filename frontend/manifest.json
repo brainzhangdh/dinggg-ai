@@ -20,7 +20,7 @@
       }
     },
     "requiredPrivateInfos": [
-      "getLocation"
+      "chooseAddress"
     ]
   },
   "h5": {
