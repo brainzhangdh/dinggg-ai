@@ -184,8 +184,8 @@ import ChatBubble from '@/components/ChatBubble/ChatBubble.vue'
 import StarBadge from '@/components/StarBadge/StarBadge.vue'
 
 // 页面参数
-const sceneId = ref('')
-const sceneName = ref('')
+const sceneId = ref('1')
+const sceneName = ref('情景对话')
 
 // 对话
 const messages = ref([])
